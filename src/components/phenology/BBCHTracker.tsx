@@ -12,19 +12,29 @@ import {
 } from "recharts";
 import { Sprout, HelpCircle, Edit3, ArrowLeft, Maximize2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
-import { BBCHData } from "@/types"; // Ensure you have this type or use 'any'
+import { BBCHData } from "@/types";
+import { clsx } from "clsx";
 
 interface BBCHTrackerProps {
-  data: BBCHData; // <--- NEW PROP
+  data: BBCHData;
 }
 
 export default function BBCHTracker({ data }: BBCHTrackerProps) {
-  // Use 'data' from props instead of 'MOCK_BBCH'
   const { currentStage, stageName, confidenceScore, history } = data;
-
   const [isModalOpen, setModalOpen] = useState(false);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const confidencePercent = Math.round(confidenceScore * 100);
+
+  // --- DYNAMIC COLOR LOGIC ---
+  const isHighConfidence = confidencePercent > 80;
+
+  // CHANGED: Deeper colors (green-100 instead of green-50)
+  const cardBgColor = isHighConfidence ? "bg-green-100" : "bg-white";
+  const cardBorderColor = isHighConfidence
+    ? "border-green-300"
+    : "border-slate-200";
+  const textColor = isHighConfidence ? "text-green-800" : "text-slate-700";
+  const iconColor = isHighConfidence ? "text-green-700" : "text-slate-400";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,34 +45,57 @@ export default function BBCHTracker({ data }: BBCHTrackerProps) {
 
   return (
     <>
-      {/* CARD */}
+      {/* 1. COMPACT HERO CARD */}
       <div
         onClick={() => {
           setModalOpen(true);
           setShowFeedbackForm(false);
         }}
-        className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 cursor-pointer hover:shadow-md hover:border-green-300 transition-all group relative flex flex-col items-center justify-center text-center h-full"
+        className={clsx(
+          "rounded-xl shadow-sm border p-4 cursor-pointer hover:shadow-md transition-all group relative flex flex-col items-center justify-center text-center h-full",
+          cardBgColor,
+          cardBorderColor,
+          // Stronger hover border
+          isHighConfidence
+            ? "hover:border-green-500"
+            : "hover:border-green-300",
+        )}
       >
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-green-600">
-          <Maximize2 size={14} />
+        <div
+          className={clsx(
+            "absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity",
+            iconColor,
+          )}
+        >
+          <Maximize2 size={16} />
         </div>
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
-          <Sprout size={12} /> Pflanzenstadium
+
+        {/* Header - Bigger Text */}
+        <div
+          className={clsx(
+            "text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5",
+            iconColor,
+          )}
+        >
+          <Sprout size={16} /> Pflanzenstadium
         </div>
-        <div className="flex flex-col items-center">
-          <div className="text-4xl font-black text-green-600 tracking-tighter leading-none mb-0.5">
+
+        {/* HERO CONTENT: Huge Number & Name */}
+        <div className="flex flex-col items-center justify-center flex-grow">
+          {/* CHANGED: Text size increased from 4xl to 6xl */}
+          <div className="text-6xl font-black text-green-700 tracking-tighter leading-none mb-1">
             {currentStage}
           </div>
-          <div className="text-lg font-bold text-slate-800 leading-none">
+          {/* CHANGED: Text size increased from lg to 2xl */}
+          <div className={clsx("text-2xl font-bold leading-tight", textColor)}>
             {stageName}
           </div>
         </div>
-        <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-medium text-slate-500">
-          <span>{confidencePercent}% Konfidenz</span>
-        </div>
+
+        {/* REMOVED: Confidence Badge is gone from here */}
       </div>
 
-      {/* MODAL */}
+      {/* 2. DETAIL MODAL */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
@@ -73,7 +106,6 @@ export default function BBCHTracker({ data }: BBCHTrackerProps) {
             onSubmit={handleSubmit}
             className="space-y-4 animate-in slide-in-from-right duration-200"
           >
-            {/* ... (Form Content Same as Before) ... */}
             <button
               type="button"
               onClick={() => setShowFeedbackForm(false)}
@@ -89,7 +121,15 @@ export default function BBCHTracker({ data }: BBCHTrackerProps) {
                 </strong>
               </p>
             </div>
-            {/* ... Rest of form inputs ... */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Tatsächliches Stadium
+              </label>
+              <select className="w-full rounded-lg border-slate-300 border p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                <option>65 - Vollblüte (Aktuell)</option>
+                <option>67 - Abblüte</option>
+              </select>
+            </div>
             <button
               type="submit"
               className="w-full py-2 px-4 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 shadow-sm"
@@ -99,6 +139,7 @@ export default function BBCHTracker({ data }: BBCHTrackerProps) {
           </form>
         ) : (
           <div className="space-y-6">
+            {/* Context Info (Confidence is shown here now) */}
             <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg border border-slate-100">
               <div>
                 <div className="text-xs text-slate-500 uppercase tracking-wide font-semibold">
@@ -109,6 +150,7 @@ export default function BBCHTracker({ data }: BBCHTrackerProps) {
                 </div>
               </div>
               <div className="text-right">
+                {/* Confidence is kept here in the details */}
                 <div className="text-xs text-slate-500 flex items-center justify-end gap-1">
                   <HelpCircle size={12} /> Konfidenz
                 </div>
@@ -117,10 +159,16 @@ export default function BBCHTracker({ data }: BBCHTrackerProps) {
                 </div>
               </div>
             </div>
+
             <div className="h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={history}>
-                  {/* ... Chart Config Same as Before ... */}
+                  <defs>
+                    <linearGradient id="colorBbch" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#16a34a" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid
                     strokeDasharray="3 3"
                     vertical={false}
@@ -146,7 +194,7 @@ export default function BBCHTracker({ data }: BBCHTrackerProps) {
                     stroke="#16a34a"
                     strokeWidth={2}
                     fillOpacity={1}
-                    fill="#dcfce7"
+                    fill="url(#colorBbch)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
