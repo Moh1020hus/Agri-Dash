@@ -1,36 +1,112 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Getting Started
+# AgriDash - Smart Farming Dashboard
 
-First, run the development server:
+AgriDash is a Next.js-based dashboard for monitoring agricultural sensors, weather conditions, and plant phenology. It features a responsive design, interactive charts, and a mock data layer for rapid prototyping.
 
+##  Getting Started (Local Development)
+
+Follow these steps to run the project on your local machine for development.
+
+### Prerequisites
+
+* Node.js 18+ installed.
+* npm, yarn, or pnpm.
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/Moh1020hus/Agri-Dash.git
+cd agri-dashboard
+
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+2. Install dependencies:
+```bash
+npm install
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
 
-## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+3. Run the development server:
+```bash
+npm run dev
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+4. Open [http://localhost:3000](https://www.google.com/search?q=http://localhost:3000) in your browser.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🐳 Docker Support
+
+This project is configured for a production-ready **Docker** deployment using a multi-stage build to keep the image size small.
+
+### Prerequisites
+
+* **Docker Desktop** must be installed and running.
+
+### Build the Image
+
+Run this command in the project root to build the Docker image:
+
+```bash
+docker build -t agridash .
+
+```
+
+*(Note: This uses the `standalone` output mode configured in `next.config.ts`)*
+
+### Run the Container
+
+Once built, start the container and map it to port 3000:
+
+```bash
+docker run -p 3000:3000 agridash
+
+```
+
+Access the app at [http://localhost:3000](https://www.google.com/search?q=http://localhost:3000).
+
+---
+
+##  Project Structure
+
+Here is a quick overview of where to find things:
+
+* **`src/app`**: Contains the App Router pages (Routes).
+* `page.tsx`: Main Dashboard.
+* `login/`: Login page.
+* `fields/[id]/`: Dynamic Field Detail pages.
+* `weather/`: Weather forecast page.
+
+
+* **`src/components`**: Reusable UI components.
+* `layout/`: Sidebar, TopBar.
+* `sensors/`: Sensor cards and grids.
+* `phenology/`: BBCH Tracker and Growth Charts.
+
+
+* **`src/lib`**: Logic and Data.
+* `dummy-data.ts`: **Single Source of Truth** for all mock data (Sensors, Fields, Weather).
+* `notification-service.ts`: Generates notifications based on dummy data.
+
+
+
+---
+
+##  Styling & Theming
+
+* **Tailwind CSS**: Used for all styling.
+* **Light Mode Only**: The project enforces Light Mode via a "Nuclear" override in `src/app/globals.css` and `layout.tsx` to prevent system dark mode preferences from breaking the dashboard design.
+
+## 🛠 Tech Stack
+
+* [Next.js 15](https://nextjs.org/) (App Router)
+* [React](https://react.dev/)
+* [Tailwind CSS](https://tailwindcss.com/)
+* [Recharts](https://recharts.org/) (Data Visualization)
+* [Lucide React](https://lucide.dev/) (Icons)
+* [Leaflet / React-Leaflet](https://react-leaflet.js.org/) (Maps)
