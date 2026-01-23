@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { Sprout, HelpCircle, Edit3, ArrowLeft, Maximize2 } from "lucide-react";
+import { HelpCircle, Edit3, ArrowLeft, Maximize2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { BBCHData } from "@/types";
 import { clsx } from "clsx";
@@ -28,13 +28,13 @@ export default function BBCHTracker({ data }: BBCHTrackerProps) {
   // --- DYNAMIC COLOR LOGIC ---
   const isHighConfidence = confidencePercent > 80;
 
-  // CHANGED: Deeper colors (green-100 instead of green-50)
   const cardBgColor = isHighConfidence ? "bg-green-100" : "bg-white";
   const cardBorderColor = isHighConfidence
     ? "border-green-300"
     : "border-slate-200";
-  const textColor = isHighConfidence ? "text-green-800" : "text-slate-700";
+  const textColor = isHighConfidence ? "text-green-800" : "text-slate-800";
   const iconColor = isHighConfidence ? "text-green-700" : "text-slate-400";
+  const numberColor = isHighConfidence ? "text-green-700" : "text-slate-900";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,10 +52,9 @@ export default function BBCHTracker({ data }: BBCHTrackerProps) {
           setShowFeedbackForm(false);
         }}
         className={clsx(
-          "rounded-xl shadow-sm border p-4 cursor-pointer hover:shadow-md transition-all group relative flex flex-col items-center justify-center text-center h-full",
+          "rounded-xl shadow-sm border p-6 cursor-pointer hover:shadow-md transition-all group relative flex flex-col items-center justify-center text-center h-full",
           cardBgColor,
           cardBorderColor,
-          // Stronger hover border
           isHighConfidence
             ? "hover:border-green-500"
             : "hover:border-green-300",
@@ -67,32 +66,26 @@ export default function BBCHTracker({ data }: BBCHTrackerProps) {
             iconColor,
           )}
         >
-          <Maximize2 size={16} />
+          <Maximize2 size={18} />
         </div>
 
-        {/* Header - Bigger Text */}
-        <div
-          className={clsx(
-            "text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5",
-            iconColor,
-          )}
-        >
-          <Sprout size={16} /> Pflanzenstadium
-        </div>
-
-        {/* HERO CONTENT: Huge Number & Name */}
-        <div className="flex flex-col items-center justify-center flex-grow">
-          {/* CHANGED: Text size increased from 4xl to 6xl */}
-          <div className="text-6xl font-black text-green-700 tracking-tighter leading-none mb-1">
+        {/* HERO CONTENT: Huge Number & Name (Centered) */}
+        <div className="flex flex-col items-center justify-center w-full">
+          {/* Main Number */}
+          <div
+            className={clsx(
+              "text-6xl font-black tracking-tighter leading-none mb-1",
+              numberColor,
+            )}
+          >
             {currentStage}
           </div>
-          {/* CHANGED: Text size increased from lg to 2xl */}
+
+          {/* Stage Name */}
           <div className={clsx("text-2xl font-bold leading-tight", textColor)}>
             {stageName}
           </div>
         </div>
-
-        {/* REMOVED: Confidence Badge is gone from here */}
       </div>
 
       {/* 2. DETAIL MODAL */}
@@ -139,7 +132,6 @@ export default function BBCHTracker({ data }: BBCHTrackerProps) {
           </form>
         ) : (
           <div className="space-y-6">
-            {/* Context Info (Confidence is shown here now) */}
             <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg border border-slate-100">
               <div>
                 <div className="text-xs text-slate-500 uppercase tracking-wide font-semibold">
@@ -150,7 +142,6 @@ export default function BBCHTracker({ data }: BBCHTrackerProps) {
                 </div>
               </div>
               <div className="text-right">
-                {/* Confidence is kept here in the details */}
                 <div className="text-xs text-slate-500 flex items-center justify-end gap-1">
                   <HelpCircle size={12} /> Konfidenz
                 </div>

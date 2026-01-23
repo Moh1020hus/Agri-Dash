@@ -1,5 +1,10 @@
+// src/components/layout/Sidebar.tsx
+
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Map as MapIcon,
@@ -7,110 +12,102 @@ import {
   BarChart3,
   Settings,
   Menu,
+  ChevronLeft,
 } from "lucide-react";
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation"; // <--- NEW IMPORTS
 import { clsx } from "clsx";
 
 export function Sidebar() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const pathname = usePathname();
+  // State to toggle between expanded (w-64) and collapsed (w-20)
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  // Get current view from URL, default to 'dashboard'
-  const activeItem = searchParams.get("view") || "dashboard";
-
+  // Navigation Items
   const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "fields", label: "Feldverwaltung", icon: MapIcon }, // You can map these later
-    { id: "plants", label: "Pflanzenanalyse", icon: Sprout },
-    { id: "reports", label: "Berichte & Daten", icon: BarChart3 },
-    { id: "settings", label: "Einstellungen", icon: Settings },
+    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Feldverwaltung", href: "/fields/f-001", icon: MapIcon }, // Example link
+    { name: "Pflanzenanalyse", href: "/analysis", icon: Sprout },
+    { name: "Berichte & Daten", href: "/reports", icon: BarChart3 },
+    { name: "Einstellungen", href: "/settings", icon: Settings },
   ];
 
-  const handleNavigation = (id: string) => {
-    // This pushes ?view=settings to the URL
-    router.push(`/?view=${id}`);
-    setIsMobileOpen(false);
-  };
-
   return (
-    <>
-      {/* MOBILE HEADER */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-50">
-        <div className="font-bold text-lg text-slate-800 flex items-center gap-2">
-          <Sprout className="text-green-600" /> AgriDash
-        </div>
-        <button
-          onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="p-2 text-slate-600"
-        >
-          <Menu size={24} />
-        </button>
-      </div>
-
-      {/* SIDEBAR */}
-      <aside
-        className={clsx(
-          "fixed inset-y-0 left-0 z-40 bg-white border-r border-slate-200 flex flex-col transition-all duration-300 ease-in-out shadow-xl overflow-hidden",
-          isMobileOpen
-            ? "translate-x-0 w-64"
-            : "-translate-x-full md:translate-x-0",
-          "md:w-20 md:hover:w-64 group",
-        )}
-      >
-        {/* LOGO AREA */}
-        <div className="h-16 flex items-center px-5 border-b border-slate-100 whitespace-nowrap">
-          <div className="bg-green-600 p-2 rounded-lg text-white shrink-0 transition-transform group-hover:scale-110">
-            <Sprout size={24} />
+    <aside
+      className={clsx(
+        // LAYOUT: Relative (not fixed), part of flex container, no shrink
+        "h-screen bg-white border-r border-slate-200 flex flex-col transition-all duration-300 z-40 shrink-0",
+        // WIDTH LOGIC: Changes the physical width of the sidebar
+        isExpanded ? "w-64" : "w-20",
+      )}
+      // Interaction: Expand on Hover (or you can use a button)
+      onMouseEnter={() => setIsExpanded(true)}
+      onMouseLeave={() => setIsExpanded(false)}
+    >
+      {/* 1. LOGO AREA */}
+      <div className="h-16 flex items-center px-4 border-b border-slate-100 overflow-hidden whitespace-nowrap">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+            <Sprout className="text-white" size={24} />
           </div>
-          <span className="ml-4 font-bold text-xl text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75">
+          <span
+            className={clsx(
+              "font-bold text-xl text-slate-800 transition-opacity duration-300",
+              isExpanded ? "opacity-100" : "opacity-0 hidden",
+            )}
+          >
             AgriDash
           </span>
         </div>
+      </div>
 
-        {/* NAVIGATION */}
-        <nav className="flex-1 py-6 space-y-2">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleNavigation(item.id)} // <--- UPDATED CLICK HANDLER
+      {/* 2. NAVIGATION */}
+      <nav className="flex-1 py-6 px-3 space-y-2 overflow-x-hidden">
+        {navItems.map((item) => {
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/" && pathname.startsWith(item.href));
+
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
               className={clsx(
-                "w-full flex items-center px-5 py-3 transition-colors relative whitespace-nowrap",
-                activeItem === item.id
-                  ? "text-blue-600 bg-blue-50"
+                "flex items-center gap-3 px-3 py-3 rounded-xl transition-all whitespace-nowrap group",
+                isActive
+                  ? "bg-green-50 text-green-700 font-semibold"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
               )}
             >
-              <item.icon size={24} className="shrink-0" />
-              <span className="ml-4 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                {item.label}
+              {/* Icon */}
+              <item.icon
+                size={22}
+                className={clsx(
+                  "shrink-0",
+                  isActive
+                    ? "text-green-600"
+                    : "text-slate-400 group-hover:text-slate-600",
+                )}
+              />
+
+              {/* Label (Hidden when collapsed) */}
+              <span
+                className={clsx(
+                  "transition-opacity duration-300",
+                  isExpanded ? "opacity-100" : "opacity-0 w-0 hidden",
+                )}
+              >
+                {item.name}
               </span>
-            </button>
-          ))}
-        </nav>
+            </Link>
+          );
+        })}
+      </nav>
 
-        {/* PROFILE */}
-        <div className="p-4 border-t border-slate-100 whitespace-nowrap">
-          <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold shrink-0">
-              JD
-            </div>
-            <div className="ml-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <p className="text-sm font-medium text-slate-900">John Doe</p>
-              <p className="text-xs text-slate-500">Landwirt</p>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* OVERLAY */}
-      {isMobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
-          onClick={() => setIsMobileOpen(false)}
-        />
-      )}
-    </>
+      {/* 3. FOOTER / TOGGLE (Optional visual indicator) */}
+      <div className="p-4 border-t border-slate-100 flex justify-center">
+        <button className="p-2 rounded-lg text-slate-400 hover:bg-slate-50 transition-colors">
+          {isExpanded ? <ChevronLeft size={20} /> : <Menu size={20} />}
+        </button>
+      </div>
+    </aside>
   );
 }

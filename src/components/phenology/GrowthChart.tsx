@@ -12,7 +12,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, Maximize2, Info } from "lucide-react";
+import { Maximize2, Info } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { clsx } from "clsx";
 
@@ -27,31 +27,31 @@ export default function GrowthChart({ data }: GrowthChartProps) {
   const latestGrowth = latestData.growth.toFixed(2);
   const latestMoisture = Math.round(latestData.moisture);
 
-  // --- DYNAMIC COLOR LOGIC (DEEPER COLORS) ---
-  let moistureColor = "text-blue-700";
-  let cardBgColor = "bg-blue-100"; // Deeper Blue
+  // --- DYNAMIC COLOR LOGIC ---
+  let moistureColor = "text-blue-800";
+  let cardBgColor = "bg-blue-100"; // Deeper Blue background
   let cardBorderColor = "border-blue-300";
-  let iconColor = "text-blue-600";
-  let dividerColor = "bg-blue-300/50"; // Semi-transparent divider
+  let iconColor = "text-blue-700";
+  let dividerColor = "bg-blue-400/40";
 
   if (latestMoisture < 20) {
     // Critical (Dry)
-    moistureColor = "text-red-700";
-    cardBgColor = "bg-red-100"; // Deeper Red
+    moistureColor = "text-red-800";
+    cardBgColor = "bg-red-100";
     cardBorderColor = "border-red-300";
-    iconColor = "text-red-600";
-    dividerColor = "bg-red-300/50";
+    iconColor = "text-red-700";
+    dividerColor = "bg-red-400/40";
   } else if (latestMoisture < 40) {
     // Warning (Low)
-    moistureColor = "text-amber-700";
-    cardBgColor = "bg-amber-100"; // Deeper Amber
+    moistureColor = "text-amber-800";
+    cardBgColor = "bg-amber-100";
     cardBorderColor = "border-amber-300";
-    iconColor = "text-amber-600";
-    dividerColor = "bg-amber-300/50";
+    iconColor = "text-amber-700";
+    dividerColor = "bg-amber-400/40";
   }
 
-  // Growth number is always dark/slate to differentiate from moisture
-  const growthColor = "text-slate-800";
+  // Growth number color
+  const growthColor = "text-slate-900";
 
   return (
     <>
@@ -59,10 +59,9 @@ export default function GrowthChart({ data }: GrowthChartProps) {
       <div
         onClick={() => setModalOpen(true)}
         className={clsx(
-          "rounded-xl shadow-sm border p-4 cursor-pointer hover:shadow-md transition-all group relative flex flex-col items-center justify-center text-center h-full",
+          "rounded-xl shadow-sm border p-6 cursor-pointer hover:shadow-md transition-all group relative flex flex-col items-center justify-center text-center h-full",
           cardBgColor,
           cardBorderColor,
-          // Stronger hover border
           latestMoisture < 20
             ? "hover:border-red-500"
             : latestMoisture < 40
@@ -76,27 +75,16 @@ export default function GrowthChart({ data }: GrowthChartProps) {
             iconColor,
           )}
         >
-          <Maximize2 size={16} />
-        </div>
-
-        {/* Small Header */}
-        <div
-          className={clsx(
-            "text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-1.5",
-            iconColor,
-          )}
-        >
-          <TrendingUp size={16} /> Wachstum & Feuchte
+          <Maximize2 size={18} />
         </div>
 
         {/* HERO CONTENT: Metrics Side-by-Side */}
-        <div className="flex items-center justify-center gap-6 w-full flex-grow">
+        <div className="flex items-center justify-center gap-8 w-full">
           {/* Metric 1: Growth */}
           <div className="flex flex-col items-center">
-            {/* CHANGED: Increased to text-5xl */}
             <div
               className={clsx(
-                "text-5xl font-black leading-none tracking-tight",
+                "text-6xl font-black leading-none tracking-tight",
                 growthColor,
               )}
             >
@@ -104,7 +92,7 @@ export default function GrowthChart({ data }: GrowthChartProps) {
             </div>
             <div
               className={clsx(
-                "text-[10px] font-bold uppercase mt-1 opacity-70",
+                "text-lg font-bold uppercase mt-1 opacity-80",
                 growthColor,
               )}
             >
@@ -113,25 +101,24 @@ export default function GrowthChart({ data }: GrowthChartProps) {
           </div>
 
           {/* Divider */}
-          <div className={clsx("w-px h-12 rounded-full", dividerColor)}></div>
+          <div className={clsx("w-px h-16 rounded-full", dividerColor)}></div>
 
-          {/* Metric 2: Moisture (Dynamic Color) */}
+          {/* Metric 2: Moisture */}
           <div className="flex flex-col items-center">
-            {/* CHANGED: Increased to text-5xl */}
             <div
               className={clsx(
-                "text-5xl font-black leading-none tracking-tight",
+                "text-6xl font-black leading-none tracking-tight",
                 moistureColor,
               )}
             >
               {latestMoisture}
-              <span className="text-2xl align-top font-bold opacity-60 ml-0.5">
+              <span className="text-3xl align-top font-bold opacity-70 ml-0.5">
                 %
               </span>
             </div>
             <div
               className={clsx(
-                "text-[10px] font-bold uppercase mt-1 opacity-80",
+                "text-lg font-bold uppercase mt-1 opacity-90",
                 moistureColor,
               )}
             >
@@ -141,7 +128,7 @@ export default function GrowthChart({ data }: GrowthChartProps) {
         </div>
       </div>
 
-      {/* 2. DETAIL MODAL (Unchanged) */}
+      {/* 2. DETAIL MODAL */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}

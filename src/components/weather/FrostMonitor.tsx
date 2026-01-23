@@ -36,7 +36,7 @@ export default function FrostMonitor() {
           riskLevel === "moderate" &&
             "bg-amber-50 border-amber-200 hover:border-amber-400",
           riskLevel === "critical" &&
-            "bg-red-50 border-red-200 hover:border-red-400",
+            "bg-red-400 border-red-200 hover:border-red-200",
         )}
       >
         <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400">
@@ -71,10 +71,6 @@ export default function FrostMonitor() {
           {riskLevel === "low" && "Kein Frost"}
           {riskLevel === "moderate" && "Risiko Mäßig"}
           {riskLevel === "critical" && "Frost Warnung"}
-        </div>
-
-        <div className="text-sm font-medium opacity-70">
-          Tiefstwert: {minTemp}°C (48h)
         </div>
       </div>
 
@@ -128,7 +124,7 @@ export default function FrostMonitor() {
               />
               <ReferenceLine
                 y={0}
-                stroke="#ec0404"
+                stroke="#ff0000"
                 strokeDasharray="3 3"
                 label={{ value: "0°C", fill: "#f70000", fontSize: 12 }}
               />
