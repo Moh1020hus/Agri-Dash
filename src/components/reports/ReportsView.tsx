@@ -1,204 +1,240 @@
 "use client";
 
-import { useState } from "react";
-import { Download, FileText, Calendar, Filter, Search } from "lucide-react";
-import { MOCK_SENSORS } from "@/lib/dummy-data";
+import { useState, useEffect } from "react"; // <--- Add useEffect
+import { FileSpreadsheet, FileText, Filter, Calendar } from "lucide-react";
 import { clsx } from "clsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+// 1. Define the shape of a single row
+type ReportEntry = {
+  date: string;
+  time: string;
+  name: string;
+  type: string;
+  value: string;
+  raw_value: string;
+  status: string;
+};
+
+// 2. Generate Data (Unchanged)
+const generateReportData = () => {
+  const sensors = [
+    { name: "Dendrometer Nord", type: "Dendrometer", unit: "mm growth" },
+    { name: "Bodenfeuchte Tief", type: "Soil Moisture", unit: "%" },
+    { name: "Klima Station", type: "Temperature", unit: "°C" },
+  ];
+
+  const data: ReportEntry[] = [];
+
+  for (let i = 0; i < 7; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split("T")[0];
+
+    sensors.forEach((s) => {
+      let val = 0;
+      let status = "online";
+
+      if (s.type === "Temperature") val = 12 + Math.random() * 5;
+      if (s.type === "Soil Moisture") {
+        val = 20 + Math.random() * 5;
+        status = "warning";
+      }
+      if (s.type === "Dendrometer") val = 0.5 + Math.random() * 0.5;
+
+      data.push({
+        date: dateStr,
+        time: "12:00",
+        name: s.name,
+        type: s.type,
+        value: val.toFixed(2) + " " + s.unit,
+        raw_value: val.toFixed(2),
+        status: status,
+      });
+    });
+  }
+  return data.sort((a, b) => b.date.localeCompare(a.date));
+};
 
 export default function ReportsView() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedType, setSelectedType] = useState("all");
+  // FIX STARTS HERE ------------------------------
 
-  // --- FIX 1: Safe Mock Data Generation ---
-  const historyData = MOCK_SENSORS.flatMap((sensor) => {
-    return Array.from({ length: 5 }).map((_, i) => {
-      // Check if value is a number before doing math
-      let simulatedValue = sensor.value;
-      if (typeof sensor.value === "number") {
-        simulatedValue = sensor.value + (Math.random() * 2 - 1);
-      }
+  // 1. Start with an empty array to match the server (which has no data yet)
+  const [reportData, setReportData] = useState<ReportEntry[]>([]);
 
-      return {
-        id: `${sensor.id}-${i}`,
-        date: new Date(Date.now() - i * 86400000).toISOString().split("T")[0],
-        time: "12:00",
-        fieldId: sensor.fieldId,
-        sensorName: sensor.name,
-        type: sensor.type,
-        value: simulatedValue, // Use the safe value
-        unit: sensor.unit,
-        status: sensor.status,
-      };
+  // 2. Generate the random data ONLY after the browser loads (Client-side)
+  useEffect(() => {
+    setReportData(generateReportData());
+  }, []);
+
+  // FIX ENDS HERE --------------------------------
+
+  const handleExportCSV = () => {
+    // ... (Keep existing CSV logic) ...
+    const headers = [
+      "Datum",
+      "Uhrzeit",
+      "Sensor Name",
+      "Typ",
+      "Messwert",
+      "Status",
+    ];
+    const rows = reportData.map((row) => [
+      row.date,
+      row.time,
+      row.name,
+      row.type,
+      row.raw_value,
+      row.status,
+    ]);
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((e) => e.join(",")),
+    ].join("\n");
+    const blob = new Blob(["\uFEFF" + csvContent], {
+      type: "text/csv;charset=utf-8;",
     });
-  });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute(
+      "download",
+      `agridash_export_${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
-  // Filter Logic
-  const filteredData = historyData.filter((item) => {
-    const matchesSearch = item.sensorName
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesType = selectedType === "all" || item.type === selectedType;
-    return matchesSearch && matchesType;
-  });
+  const handleExportPDF = () => {
+    // ... (Keep existing PDF logic) ...
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("AgriDash - Sensor Bericht", 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Erstellt am: ${new Date().toLocaleDateString("de-DE")}`, 14, 28);
+    doc.text(`User: John Doe (Farm Manager)`, 14, 34);
+
+    const tableBody = reportData.map((row) => [
+      `${row.date} ${row.time}`,
+      row.name,
+      row.type,
+      row.value,
+      row.status,
+    ]);
+
+    autoTable(doc, {
+      startY: 40,
+      head: [["Zeitstempel", "Sensor Name", "Typ", "Messwert", "Status"]],
+      body: tableBody,
+      theme: "striped",
+      headStyles: { fillColor: [22, 163, 74] },
+    });
+    doc.save(`agridash_bericht_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  // Prevent hydration mismatch by not rendering the table until data exists
+  // Optional: You could show a loading spinner here
+  if (reportData.length === 0) {
+    return (
+      <div className="p-8 text-center text-slate-500">Lade Berichte...</div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* HEADER & ACTIONS */}
+    <div className="space-y-6 p-6 h-full flex flex-col">
+      {/* ... Keep your existing JSX return ... */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-bold text-slate-900">
             Berichte & Daten
-          </h2>
+          </h1>
           <p className="text-slate-500">
             Exportieren und analysieren Sie historische Sensordaten.
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors font-medium text-sm">
-            <FileText size={16} /> PDF Bericht
+        <div className="flex gap-2">
+          <button
+            onClick={handleExportPDF}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition-colors"
+          >
+            <FileText size={18} /> PDF Bericht
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm">
-            <Download size={16} /> CSV Export
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm transition-colors"
+          >
+            <FileSpreadsheet size={18} /> CSV Export
           </button>
         </div>
       </div>
 
-      {/* FILTERS TOOLBAR */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center">
-        {/* Search */}
-        <div className="relative flex-1 w-full">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            size={18}
-          />
+      {/* FILTER BAR */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-wrap gap-4 items-center">
+        <div className="flex-1 min-w-[200px] relative">
           <input
             type="text"
             placeholder="Suche nach Sensor..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-4 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
           />
         </div>
-
-        {/* Type Filter */}
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <Filter size={18} className="text-slate-400" />
-          <select
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
-            className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 outline-none"
-          >
-            <option value="all">Alle Typen</option>
-            <option value="dendrometer">Dendrometer</option>
-            <option value="soil_moisture">Bodenfeuchte</option>
-            <option value="temperature">Temperatur</option>
-            <option value="camera">Kamera</option>
-          </select>
+        <div className="flex gap-2">
+          <button className="px-3 py-2 border border-slate-200 rounded-lg text-sm flex items-center gap-2 text-slate-600 hover:bg-slate-50">
+            <Filter size={16} /> Alle Typen
+          </button>
+          <button className="px-3 py-2 border border-slate-200 rounded-lg text-sm flex items-center gap-2 text-slate-600 hover:bg-slate-50">
+            <Calendar size={16} /> Letzte 7 Tage
+          </button>
         </div>
-
-        {/* Date Filter (Mock) */}
-        <button className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 text-sm hover:bg-slate-100 w-full md:w-auto justify-center">
-          <Calendar size={16} />
-          <span>Letzte 7 Tage</span>
-        </button>
       </div>
 
-      {/* DATA TABLE */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left text-slate-500">
-            <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-100">
+      {/* TABLE */}
+      <div className="flex-1 bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm">
+        <div className="overflow-auto flex-1">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-xs sticky top-0 z-10 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-3">Datum</th>
-                <th className="px-6 py-3">Sensor Name</th>
-                <th className="px-6 py-3">Typ</th>
-                <th className="px-6 py-3">Messwert</th>
-                <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-4">Datum</th>
+                <th className="px-6 py-4">Sensor Name</th>
+                <th className="px-6 py-4">Typ</th>
+                <th className="px-6 py-4">Messwert</th>
+                <th className="px-6 py-4">Status</th>
               </tr>
             </thead>
-            <tbody>
-              {filteredData.length > 0 ? (
-                filteredData.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="bg-white border-b border-slate-50 hover:bg-slate-50 transition-colors"
-                  >
-                    <td className="px-6 py-4 font-medium text-slate-900">
-                      {row.date}{" "}
-                      <span className="text-slate-400 ml-1 text-xs">
-                        {row.time}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-medium">{row.sensorName}</td>
-                    <td className="px-6 py-4 capitalize">
-                      {row.type.replace("_", " ")}
-                    </td>
-
-                    {/* --- FIX 2: Safe Display Logic --- */}
-                    <td className="px-6 py-4 font-mono text-slate-700">
-                      {typeof row.value === "number"
-                        ? row.value.toFixed(2)
-                        : row.value}
-                      <span className="text-xs text-slate-400 ml-1">
-                        {row.unit}
-                      </span>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <span
-                        className={clsx(
-                          "px-2 py-1 rounded-full text-xs font-medium",
-                          row.status === "online"
-                            ? "bg-green-100 text-green-700"
-                            : row.status === "warning"
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-red-100 text-red-700",
-                        )}
-                      >
-                        {row.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-6 py-8 text-center text-slate-400"
-                  >
-                    Keine Daten für die gewählten Filter gefunden.
+            <tbody className="divide-y divide-slate-100">
+              {reportData.map((row, index) => (
+                <tr key={index} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4 font-mono text-slate-600">
+                    <span className="font-bold text-slate-900">{row.date}</span>{" "}
+                    <span className="opacity-50 ml-1">{row.time}</span>
+                  </td>
+                  <td className="px-6 py-4 font-medium text-slate-700">
+                    {row.name}
+                  </td>
+                  <td className="px-6 py-4 text-slate-500">{row.type}</td>
+                  <td className="px-6 py-4 font-mono text-slate-700">
+                    {row.value}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={clsx(
+                        "px-2 py-1 rounded-full text-xs font-bold capitalize",
+                        row.status === "online"
+                          ? "bg-green-100 text-green-700"
+                          : row.status === "warning"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-red-100 text-red-700",
+                      )}
+                    >
+                      {row.status}
+                    </span>
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
-        </div>
-
-        {/* PAGINATION FOOTER */}
-        <div className="p-4 border-t border-slate-100 flex items-center justify-between">
-          <span className="text-xs text-slate-500">
-            Zeige{" "}
-            <span className="font-semibold text-slate-900">
-              1-{Math.min(10, filteredData.length)}
-            </span>{" "}
-            von{" "}
-            <span className="font-semibold text-slate-900">
-              {filteredData.length}
-            </span>{" "}
-            Einträgen
-          </span>
-          <div className="flex gap-2">
-            <button
-              className="px-3 py-1 text-xs font-medium text-slate-500 bg-white border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50"
-              disabled
-            >
-              Zurück
-            </button>
-            <button className="px-3 py-1 text-xs font-medium text-slate-500 bg-white border border-slate-200 rounded hover:bg-slate-50">
-              Weiter
-            </button>
-          </div>
         </div>
       </div>
     </div>
