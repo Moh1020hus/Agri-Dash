@@ -1,290 +1,417 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import dynamic from 'next/dynamic';
-import { MOCK_FIELDS, MOCK_SENSORS, BBCH_BY_FIELD, GROWTH_BY_FIELD } from '@/lib/dummy-data';
-import { SensorCard } from '@/components/sensors/SensorCard';
-import FrostMonitor from '@/components/weather/FrostMonitor';
-import BBCHTracker from '@/components/phenology/BBCHTracker';
-import GrowthChart from '@/components/phenology/GrowthChart';
-import { Modal } from '@/components/ui/Modal';
-import { Field, Sensor } from '@/types';
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Plus, X, Activity } from "lucide-react";
+
+import {
+  MOCK_FIELDS,
+  MOCK_SENSORS,
+  BBCH_BY_FIELD,
+  GROWTH_BY_FIELD,
+} from "@/lib/dummy-data";
+import { SensorCard } from "@/components/sensors/SensorCard";
+import FrostMonitor from "@/components/weather/FrostMonitor";
+import BBCHTracker from "@/components/phenology/BBCHTracker";
+import GrowthChart from "@/components/phenology/GrowthChart";
+import { Field } from "@/types";
 
 // --- VIEW IMPORTS ---
-import SettingsView from '@/components/settings/SettingsView';
-import ReportsView from '@/components/reports/ReportsView';
-import FieldManagementView from '@/components/fields/FieldManagementView';
-import PlantAnalysisView from '@/components/analysis/PlantAnalysisView';
+import SettingsView from "@/components/settings/SettingsView";
+import ReportsView from "@/components/reports/ReportsView";
+import FieldManagementView from "@/components/fields/FieldManagementView";
+import PlantAnalysisView from "@/components/analysis/PlantAnalysisView";
 
-// Dynamic Import for Map
-const FieldMap = dynamic(() => import('@/components/maps/FieldMap'), { 
-  ssr: false, 
-  loading: () => <div className="h-[400px] w-full bg-slate-100 animate-pulse rounded-xl flex items-center justify-center text-slate-400">Karte wird geladen...</div>
-});
+// --- SIMPLE MODAL COMPONENT ---
+function SimpleModal({
+  isOpen,
+  onClose,
+  title,
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="font-bold text-lg text-slate-900">{title}</h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-6">{children}</div>
+      </div>
+    </div>
+  );
+}
 
-// --- HELPER: Point in Polygon Algorithm ---
-function isPointInPolygon(point: [number, number], vs: [number, number][]) {
-    var x = point[0], y = point[1];
-    var inside = false;
-    for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-        var xi = vs[i][0], yi = vs[i][1];
-        var xj = vs[j][0], yj = vs[j][1];
-        var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-        if (intersect) inside = !inside;
-    }
-    return inside;
+// --- FIELD LIST COMPONENT ---
+function FieldList({
+  fields,
+  selectedFieldId,
+  onSelectField,
+  onAddField,
+}: {
+  fields: Field[];
+  selectedFieldId: string;
+  onSelectField: (id: string) => void;
+  onAddField: () => void;
+}) {
+  return (
+    <div className="h-full bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
+      <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/50 shrink-0">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-0.5">
+            Flächenverwaltung
+          </p>
+          <p className="text-sm font-medium text-slate-900">
+            {fields.length} aktive Fläche{fields.length === 1 ? "" : "n"}
+          </p>
+        </div>
+        <button
+          onClick={onAddField}
+          className="p-1.5 bg-white border border-slate-200 text-green-600 rounded-lg hover:bg-green-50 hover:border-green-200 transition-all shadow-sm"
+          title="Neue Fläche hinzufügen"
+        >
+          <Plus size={18} />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 scrollbar-thin scrollbar-thumb-slate-200">
+        <button
+          onClick={() => onSelectField("all")}
+          className={`w-full text-left px-4 py-3 rounded-xl font-semibold text-sm border transition-all duration-200 shadow-sm
+            ${
+              selectedFieldId === "all"
+                ? "bg-blue-50 text-blue-700 border-blue-200 ring-1 ring-blue-200"
+                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+            }`}
+        >
+          Alle Flächen
+        </button>
+
+        {fields.map((field) => (
+          <button
+            key={field.id}
+            onClick={() => onSelectField(field.id)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold border transition-all duration-200 shadow-sm group
+              ${
+                selectedFieldId === field.id
+                  ? "bg-green-50 text-green-800 border-green-200 ring-1 ring-green-200"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:shadow-md"
+              }`}
+          >
+            <span
+              className={`w-3 h-3 rounded-full border-2 transition-transform duration-300 shrink-0 ${
+                selectedFieldId === field.id
+                  ? "border-green-600 scale-110"
+                  : "border-slate-300 group-hover:scale-110"
+              }`}
+              style={{ backgroundColor: field.color }}
+            />
+            <span className="truncate flex-1 text-left">{field.name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function Home() {
-  // --- URL STATE ---
   const searchParams = useSearchParams();
-  const currentView = searchParams.get('view') || 'dashboard';
+  const currentView = searchParams.get("view") || "dashboard";
 
-  // --- GLOBAL DATA STATE ---
+  // Global State
   const [fields, setFields] = useState<Field[]>(MOCK_FIELDS);
-  const [sensors, setSensors] = useState<any[]>(MOCK_SENSORS); 
-  const [selectedFieldId, setSelectedFieldId] = useState<string>('all');
+  const [sensors, setSensors] = useState<any[]>(MOCK_SENSORS);
+  const [selectedFieldId, setSelectedFieldId] = useState<string>("all");
 
-  // --- INTERACTION STATE ---
-  const [selectionMode, setSelectionMode] = useState<'field' | 'sensor' | null>(null);
-  const [tempCoords, setTempCoords] = useState<[number, number] | null>(null);
-  
-  // --- MODAL STATE ---
-  const [isAddModalOpen, setAddModalOpen] = useState(false);
-  const [isSensorModalOpen, setSensorModalOpen] = useState(false);
+  // Modal State
+  const [isAddFieldOpen, setIsAddFieldOpen] = useState(false);
+  const [isAddSensorOpen, setIsAddSensorOpen] = useState(false);
 
-  // --- FORM STATE ---
-  const [newFieldName, setNewFieldName] = useState('');
-  const [newFieldColor, setNewFieldColor] = useState('#3b82f6');
-  const [newSensorName, setNewSensorName] = useState('');
-  const [newSensorType, setNewSensorType] = useState('dendrometer');
+  // Form State
+  const [newFieldName, setNewFieldName] = useState("");
+  const [newFieldColor, setNewFieldColor] = useState("#3b82f6");
+  const [newSensorName, setNewSensorName] = useState("");
+  const [newSensorType, setNewSensorType] = useState("temperature");
 
-  // ==========================================
-  // HANDLERS
-  // ==========================================
-
-  const handleStartSelection = (mode: 'field' | 'sensor') => {
-    setSelectionMode(mode);
-    if (mode === 'field') setSelectedFieldId('all'); 
+  // --- ACTIONS (Unchanged) ---
+  const handleRemoveField = (id: string) => {
+    setFields(fields.filter((f) => f.id !== id));
+    if (selectedFieldId === id) setSelectedFieldId("all");
   };
 
-  const handleLocationSelected = (lat: number, lng: number) => {
-    // 1. Validate Sensor Placement
-    if (selectionMode === 'sensor') {
-      const activeField = fields.find(f => f.id === selectedFieldId);
-      if (!activeField) { 
-        alert("Fehler: Kein Feld ausgewählt."); 
-        setSelectionMode(null); 
-        return; 
-      }
-      
-      const isInside = isPointInPolygon([lat, lng], activeField.polygon);
-      if (!isInside) { 
-        alert(`Der Sensor muss innerhalb der Grenzen von "${activeField.name}" platziert werden.`); 
-        return; 
-      }
-
-      setTempCoords([lat, lng]);
-      setSensorModalOpen(true);
-      setSelectionMode(null);
-    } 
-    // 2. Handle Field Placement
-    else if (selectionMode === 'field') {
-      setTempCoords([lat, lng]);
-      setAddModalOpen(true);
-      setSelectionMode(null);
-    }
+  const handleUpdateField = (updatedField: Field) => {
+    setFields(fields.map((f) => (f.id === updatedField.id ? updatedField : f)));
   };
 
-  const handleAddField = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newFieldName || !tempCoords) return;
-    const [lat, lng] = tempCoords;
-    const offset = 0.001; 
+  const handleCreateField = () => {
+    if (!newFieldName.trim()) return;
     const newField: Field = {
       id: `f-${Date.now()}`,
       name: newFieldName,
       color: newFieldColor,
-      center: [lat, lng],
-      polygon: [[lat + offset, lng - offset], [lat + offset, lng + offset], [lat - offset, lng + offset], [lat - offset, lng - offset]]
+      center: [51.3, 12.3],
+      polygon: [],
     };
     setFields([...fields, newField]);
-    setAddModalOpen(false);
-    setNewFieldName('');
+    setNewFieldName("");
+    setIsAddFieldOpen(false);
     setSelectedFieldId(newField.id);
   };
 
-  const handleAddSensor = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSensorName || !tempCoords) return;
-    if (selectedFieldId === 'all') { alert("Fehler: Kein Feld ausgewählt."); return; }
-    
+  const handleCreateSensor = () => {
+    if (!newSensorName.trim()) return;
     const newSensor = {
       id: `s-${Date.now()}`,
       fieldId: selectedFieldId,
       name: newSensorName,
       type: newSensorType,
-      status: 'online',
+      status: "online",
       batteryLevel: 100,
       signalStrength: 100,
       lastUpdate: new Date().toISOString(),
       value: 0,
-      unit: newSensorType === 'temperature' ? '°C' : newSensorType === 'dendrometer' ? 'mm' : '%',
-      coordinates: tempCoords,
+      unit:
+        newSensorType === "temperature"
+          ? "°C"
+          : newSensorType === "soil_moisture"
+            ? "%"
+            : "",
+      coordinates: [51.3, 12.3],
     };
     setSensors([...sensors, newSensor]);
-    setSensorModalOpen(false);
-    setNewSensorName('');
+    setNewSensorName("");
+    setIsAddSensorOpen(false);
   };
 
-  const handleRemoveField = (id: string) => {
-    setFields(fields.filter(f => f.id !== id));
-    if (selectedFieldId === id) setSelectedFieldId('all');
-  };
+  // Derived data
+  const displayedSensors =
+    selectedFieldId === "all"
+      ? sensors
+      : sensors.filter((s: any) => s.fieldId === selectedFieldId);
 
-  const handleUpdateField = (updatedField: Field) => {
-    setFields(fields.map(f => f.id === updatedField.id ? updatedField : f));
-  };
+  const currentFieldId = selectedFieldId === "all" ? "f-001" : selectedFieldId;
+  const currentField = fields.find((f) => f.id === currentFieldId);
+  const bbchData = BBCH_BY_FIELD[currentFieldId] || BBCH_BY_FIELD["f-001"];
+  const growthData =
+    GROWTH_BY_FIELD[currentFieldId] || GROWTH_BY_FIELD["f-001"];
 
-  // Derived Data for Dashboard
-  const displayedSensors = selectedFieldId === 'all' ? sensors : sensors.filter((s: any) => s.fieldId === selectedFieldId);
-  const currentFieldId = selectedFieldId === 'all' ? 'f-001' : selectedFieldId;
-  const bbchData = BBCH_BY_FIELD[currentFieldId] || BBCH_BY_FIELD['f-001'];
-  const growthData = GROWTH_BY_FIELD[currentFieldId] || GROWTH_BY_FIELD['f-001'];
-
-  // ==========================================
-  // ROUTING LOGIC (SWITCH VIEWS)
-  // ==========================================
-
-  if (currentView === 'settings') {
+  // --- VIEW SWITCHING ---
+  if (currentView === "settings")
     return (
-      <div className="p-6 md:p-8 max-w-[1600px] mx-auto">
+      <div className="p-6 h-screen overflow-auto">
         <SettingsView />
       </div>
     );
-  }
-
-  if (currentView === 'reports') {
+  if (currentView === "reports")
     return (
-      <div className="p-6 md:p-8 max-w-[1600px] mx-auto">
+      <div className="p-6 h-screen overflow-auto">
         <ReportsView />
       </div>
     );
-  }
-
-  if (currentView === 'fields') {
+  if (currentView === "fields")
     return (
-      <div className="p-6 md:p-8 max-w-[1600px] mx-auto">
-        <FieldManagementView 
-          fields={fields} 
+      <div className="p-6 h-screen overflow-auto">
+        <FieldManagementView
+          fields={fields}
           sensors={sensors}
           onUpdateField={handleUpdateField}
           onRemoveField={handleRemoveField}
         />
       </div>
     );
-  }
-
-  if (currentView === 'plants') {
+  if (currentView === "plants")
     return (
-      <div className="p-6 md:p-8 max-w-[1600px] mx-auto">
-        <PlantAnalysisView />
+      <div className="p-6 h-screen overflow-auto">
+        <PlantAnalysisView selectedFieldId={selectedFieldId} />
       </div>
     );
-  }
 
   // ==========================================
-  // DEFAULT VIEW: DASHBOARD
+  // DASHBOARD LAYOUT (FIXED, NO PAGE SCROLL)
   // ==========================================
   return (
-    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-8">
-      
-      {/* 1. MAP & WEATHER */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 h-[450px]">
-          <FieldMap 
+    // FIX: Use h-[calc(100vh-2rem)] to account for the p-4 padding.
+    // overflow-hidden ensures the main page never scrolls.
+    <div className="h-[calc(100vh-2rem)] p-4 flex flex-col gap-3 overflow-hidden max-w-[1800px] mx-auto">
+      {/* 1. TOP SECTION (Flexible: ~40%) */}
+      <div className="flex-[40] min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* Field List */}
+        <div className="lg:col-span-2 h-full min-h-0">
+          <FieldList
             fields={fields}
-            selectedFieldId={selectedFieldId} 
+            selectedFieldId={selectedFieldId}
             onSelectField={setSelectedFieldId}
-            sensors={displayedSensors}
-            onRemoveField={handleRemoveField}
-            isSelectingLocation={selectionMode !== null}
-            onStartSelection={handleStartSelection}
-            onLocationSelected={handleLocationSelected}
-            onCancelSelection={() => setSelectionMode(null)}
+            onAddField={() => setIsAddFieldOpen(true)}
           />
         </div>
-        <div className="lg:col-span-1 h-[450px]">
-          <FrostMonitor />
+        {/* Frost Monitor (wrapped to handle internal scrolling if needed) */}
+        <div className="lg:col-span-1 h-full min-h-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="h-full w-full overflow-y-auto">
+            <FrostMonitor />
+          </div>
         </div>
       </div>
 
-      {/* 2. SENSOR GRID */}
-      {displayedSensors.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {displayedSensors.map((sensor) => (
-            <SensorCard key={sensor.id} sensor={sensor} />
-          ))}
+      {/* 2. MIDDLE SECTION: SENSORS (Flexible: ~25%) */}
+      <div className="flex-[25] min-h-0 flex flex-col">
+        <div className="flex items-center justify-between mb-2 shrink-0">
+          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <Activity className="text-slate-400" size={16} />
+            Sensoren
+            {selectedFieldId !== "all" && (
+              <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                für {currentField?.name}
+              </span>
+            )}
+          </h3>
+          {selectedFieldId !== "all" && (
+            <button
+              onClick={() => setIsAddSensorOpen(true)}
+              className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs font-medium hover:bg-blue-100 transition-colors"
+            >
+              <Plus size={14} /> Neu
+            </button>
+          )}
         </div>
-      ) : (
-        <div className="p-8 text-center text-slate-400 bg-white rounded-xl border border-slate-200 border-dashed">
-          Keine Sensoren in diesem Bereich gefunden.
-        </div>
-      )}
 
-      {/* 3. ANALYSIS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[250px]">
-        <BBCHTracker data={bbchData} />
-        <GrowthChart data={growthData} />
-      </div>
-
-      {/* ================= MODALS ================= */}
-
-      <Modal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} title="Neue Versuchsfläche anlegen">
-        <form onSubmit={handleAddField} className="space-y-4">
-          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm text-slate-700 mb-4">
-            Position: <span className="font-mono text-xs font-bold text-slate-900">{tempCoords?.map(c => c.toFixed(5)).join(', ')}</span>
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-900 mb-1">Bezeichnung</label>
-            <input type="text" required placeholder="z.B. Feld Ost" value={newFieldName} onChange={(e) => setNewFieldName(e.target.value)} className="w-full rounded-lg border-slate-300 border p-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500 outline-none"/>
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-900 mb-1">Markierungsfarbe</label>
-            <div className="flex gap-3">
-              {['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'].map((color) => (
-                <button key={color} type="button" onClick={() => setNewFieldColor(color)} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${newFieldColor === color ? 'border-slate-600 scale-110 ring-2' : 'border-transparent'}`} style={{ backgroundColor: color }} />
+        {/* Scrollable container for sensors */}
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1 scrollbar-thin scrollbar-thumb-slate-200">
+          {displayedSensors.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pb-1">
+              {displayedSensors.map((sensor) => (
+                <div key={sensor.id} className="h-full">
+                  <SensorCard sensor={sensor} />
+                </div>
               ))}
             </div>
-          </div>
-          <button type="submit" className="w-full py-2.5 px-4 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 shadow-sm mt-2">Fläche erstellen</button>
-        </form>
-      </Modal>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
+              <p className="text-sm font-medium">Keine Sensoren gefunden.</p>
+            </div>
+          )}
+        </div>
+      </div>
 
-      <Modal isOpen={isSensorModalOpen} onClose={() => setSensorModalOpen(false)} title="Neuen Sensor hinzufügen">
-        <form onSubmit={handleAddSensor} className="space-y-4">
-           <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm text-slate-700 mb-4">
-            <p className="mb-1 font-medium">Der Sensor wird der aktuell gewählten Fläche zugeordnet.</p>
-            Position: <span className="font-mono text-xs font-bold text-slate-900">{tempCoords?.map(c => c.toFixed(5)).join(', ')}</span>
+      {/* 3. BOTTOM SECTION: ANALYSIS (Flexible: ~35%) */}
+      <div className="flex-[35] min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3 pb-1">
+        {/* BBCH Tracker - Removed 'p-2', 'bg-white', 'border' to let color fill the card */}
+        <div className="h-full min-h-0 overflow-hidden rounded-xl shadow-sm">
+          <div className="h-full w-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
+            <BBCHTracker data={bbchData} />
+          </div>
+        </div>
+
+        {/* Growth Chart - Removed 'p-2', 'bg-white', 'border' to let color fill the card */}
+        <div className="h-full min-h-0 overflow-hidden rounded-xl shadow-sm">
+          <div className="h-full w-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
+            <GrowthChart data={growthData} />
+          </div>
+        </div>
+      </div>
+
+      {/* --- MODALS --- */}
+      <SimpleModal
+        isOpen={isAddFieldOpen}
+        onClose={() => setIsAddFieldOpen(false)}
+        title="Neue Fläche hinzufügen"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Flächenname
+            </label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
+              placeholder="z.B. Obstgarten West"
+              value={newFieldName}
+              onChange={(e) => setNewFieldName(e.target.value)}
+            />
           </div>
           <div>
-            <label className="block text-sm font-bold text-slate-900 mb-1">Sensor Name</label>
-            <input type="text" required placeholder="z.B. Bodenfeuchte Mitte" value={newSensorName} onChange={(e) => setNewSensorName(e.target.value)} className="w-full rounded-lg border-slate-300 border p-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500 outline-none" />
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Farbe
+            </label>
+            <div className="flex gap-2">
+              {["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"].map(
+                (color) => (
+                  <button
+                    key={color}
+                    onClick={() => setNewFieldColor(color)}
+                    className={`w-8 h-8 rounded-full border-2 ${
+                      newFieldColor === color
+                        ? "border-slate-600 scale-110"
+                        : "border-transparent"
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ),
+              )}
+            </div>
+          </div>
+          <button
+            onClick={handleCreateField}
+            disabled={!newFieldName.trim()}
+            className="w-full py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+          >
+            Fläche speichern
+          </button>
+        </div>
+      </SimpleModal>
+
+      <SimpleModal
+        isOpen={isAddSensorOpen}
+        onClose={() => setIsAddSensorOpen(false)}
+        title="Neuen Sensor hinzufügen"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Sensor Name
+            </label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="z.B. Bodensensor 1"
+              value={newSensorName}
+              onChange={(e) => setNewSensorName(e.target.value)}
+            />
           </div>
           <div>
-            <label className="block text-sm font-bold text-slate-900 mb-1">Typ</label>
-            <select value={newSensorType} onChange={(e) => setNewSensorType(e.target.value)} className="w-full rounded-lg border-slate-300 border p-2.5 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-              <option value="dendrometer">Dendrometer (Wachstum)</option>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Typ
+            </label>
+            <select
+              value={newSensorType}
+              onChange={(e) => setNewSensorType(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+            >
+              <option value="temperature">Temperatur (Luft)</option>
               <option value="soil_moisture">Bodenfeuchte</option>
-              <option value="temperature">Klimastation</option>
+              <option value="dendrometer">Dendrometer (Wachstum)</option>
               <option value="camera">Kamera</option>
             </select>
           </div>
-          <button type="submit" className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-sm mt-2">Sensor installieren</button>
-        </form>
-      </Modal>
-
+          <button
+            onClick={handleCreateSensor}
+            disabled={!newSensorName.trim()}
+            className="w-full py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+          >
+            Sensor hinzufügen
+          </button>
+        </div>
+      </SimpleModal>
     </div>
   );
 }

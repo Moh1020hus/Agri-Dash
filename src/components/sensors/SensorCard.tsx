@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sensor } from "@/types"; // Ensure this matches your type location
+import { Sensor } from "@/types";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Modal } from "@/components/ui/Modal";
 import {
@@ -13,7 +13,7 @@ import {
   Maximize2,
   Cpu,
 } from "lucide-react";
-import { clsx } from "clsx";
+import clsx from "clsx";
 
 interface SensorCardProps {
   sensor: Sensor;
@@ -27,6 +27,8 @@ export function SensorCard({ sensor }: SensorCardProps) {
     dateStyle: "medium",
     timeStyle: "medium",
   });
+
+  const isCameraSensor = sensor.type === "camera";
 
   return (
     <>
@@ -79,6 +81,26 @@ export function SensorCard({ sensor }: SensorCardProps) {
         title={`Sensor-Details: ${sensor.name}`}
       >
         <div className="space-y-6">
+          {/* PHOTO PREVIEW */}
+          {isCameraSensor && (
+            <>
+              {sensor.photoUrl ? (
+                <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                  <img
+                    src={sensor.photoUrl}
+                    alt={`Uploaded photo for ${sensor.name}`}
+                    className="w-full h-56 object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                  No photo uploaded for this camera sensor yet.
+                </div>
+              )}
+            </>
+          )}
+
           {/* Status Context Box */}
           <div
             className={clsx(

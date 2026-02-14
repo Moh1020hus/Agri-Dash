@@ -22,6 +22,7 @@ export interface Sensor {
   value: number | string;
   unit: string;
   coordinates: [number, number]; // [Latitude, Longitude]
+  photoUrl?: string;
 }
 
 export interface BBCHData {

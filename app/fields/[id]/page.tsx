@@ -17,6 +17,7 @@ export default function FieldDetailPage() {
 
   if (!field) {
     return (
+      
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-slate-800">
           Feld nicht gefunden

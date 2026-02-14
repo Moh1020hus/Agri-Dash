@@ -101,6 +101,7 @@ export const MOCK_SENSORS: (Sensor & { fieldId: string })[] = [
     value: 'No Signal',
     unit: '',
     coordinates: [51.3300, 12.2300], // Updated
+    photoUrl: '/uploads/sensor-1.jpg',
   },
 ];
 
@@ -146,7 +147,7 @@ export const BBCH_BY_FIELD: Record<string, BBCHData> = {
 };
 
 // ==========================================
-// 4. GROWTH DATA (Unchanged)
+// 4. GROWTH DATA 
 // ==========================================
 export const GROWTH_BY_FIELD: Record<string, any[]> = {
   'f-001': Array.from({ length: 14 }).map((_, i) => ({
@@ -167,7 +168,7 @@ export const GROWTH_BY_FIELD: Record<string, any[]> = {
 };
 
 // ==========================================
-// 5. WEATHER FORECAST (Unchanged)
+// 5. WEATHER FORECAST 
 // ==========================================
 export const MOCK_WEATHER: WeatherForecast[] = Array.from({ length: 24 }).map((_, i) => {
   const isNight = i > 10 && i < 18;
