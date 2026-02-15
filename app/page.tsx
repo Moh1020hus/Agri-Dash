@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, X, Activity } from "lucide-react";
+import { Plus, X, Activity, Check } from "lucide-react";
 
 import {
   MOCK_FIELDS,
@@ -53,7 +53,7 @@ function SimpleModal({
   );
 }
 
-// --- FIELD LIST COMPONENT ---
+// --- FIELD LIST COMPONENT (Updated) ---
 function FieldList({
   fields,
   selectedFieldId,
@@ -86,40 +86,57 @@ function FieldList({
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 scrollbar-thin scrollbar-thumb-slate-200">
+        {/* "All Fields" Button */}
         <button
           onClick={() => onSelectField("all")}
-          className={`w-full text-left px-4 py-3 rounded-xl font-semibold text-sm border transition-all duration-200 shadow-sm
+          className={`w-full text-left px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 shadow-sm border
             ${
               selectedFieldId === "all"
-                ? "bg-blue-50 text-blue-700 border-blue-200 ring-1 ring-blue-200"
-                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                ? "bg-slate-800 text-white border-slate-800 ring-2 ring-offset-2 ring-slate-200"
+                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
             }`}
         >
-          Alle Flächen
+          <div className="flex items-center justify-between">
+            <span>Alle Flächen</span>
+            {selectedFieldId === "all" && <Activity size={18} />}
+          </div>
         </button>
 
-        {fields.map((field) => (
-          <button
-            key={field.id}
-            onClick={() => onSelectField(field.id)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold border transition-all duration-200 shadow-sm group
-              ${
-                selectedFieldId === field.id
-                  ? "bg-green-50 text-green-800 border-green-200 ring-1 ring-green-200"
-                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:shadow-md"
-              }`}
-          >
-            <span
-              className={`w-3 h-3 rounded-full border-2 transition-transform duration-300 shrink-0 ${
-                selectedFieldId === field.id
-                  ? "border-green-600 scale-110"
-                  : "border-slate-300 group-hover:scale-110"
-              }`}
-              style={{ backgroundColor: field.color }}
-            />
-            <span className="truncate flex-1 text-left">{field.name}</span>
-          </button>
-        ))}
+        {/* Individual Field Buttons */}
+        {fields.map((field) => {
+          const isSelected = selectedFieldId === field.id;
+          return (
+            <button
+              key={field.id}
+              onClick={() => onSelectField(field.id)}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-sm border group
+                ${
+                  isSelected
+                    ? "text-white ring-2 ring-offset-2 ring-slate-200 scale-[1.02]"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:shadow-md"
+                }`}
+              style={{
+                // Only apply background color if selected
+                backgroundColor: isSelected ? field.color : undefined,
+                borderColor: isSelected ? field.color : undefined,
+              }}
+            >
+              <div className="flex items-center gap-3">
+                {/* Dot: White if selected, Colored if unselected */}
+                <span
+                  className="w-3 h-3 rounded-full shrink-0"
+                  style={{
+                    backgroundColor: isSelected ? "white" : field.color,
+                  }}
+                />
+                <span className="truncate">{field.name}</span>
+              </div>
+
+              {/* Checkmark only when selected */}
+              {isSelected && <Check size={18} />}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -144,7 +161,7 @@ export default function Home() {
   const [newSensorName, setNewSensorName] = useState("");
   const [newSensorType, setNewSensorType] = useState("temperature");
 
-  // --- ACTIONS (Unchanged) ---
+  // --- ACTIONS ---
   const handleRemoveField = (id: string) => {
     setFields(fields.filter((f) => f.id !== id));
     if (selectedFieldId === id) setSelectedFieldId("all");
@@ -231,23 +248,17 @@ export default function Home() {
       </div>
     );
   if (currentView === "plants")
-    return (
-      <div className="p-6 h-screen overflow-auto">
-        <PlantAnalysisView selectedFieldId={selectedFieldId} />
-      </div>
-    );
+    return <div className="p-6 h-screen overflow-auto"></div>;
 
   // ==========================================
-  // DASHBOARD LAYOUT (FIXED, NO PAGE SCROLL)
+  // DYNAMIC TABLET & DESKTOP LAYOUT
   // ==========================================
   return (
-    // FIX: Use h-[calc(100vh-2rem)] to account for the p-4 padding.
-    // overflow-hidden ensures the main page never scrolls.
-    <div className="h-[calc(100vh-2rem)] p-4 flex flex-col gap-3 overflow-hidden max-w-[1800px] mx-auto">
-      {/* 1. TOP SECTION (Flexible: ~40%) */}
-      <div className="flex-[40] min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-3">
+    <div className="min-h-screen lg:h-[calc(100vh-2rem)] p-4 flex flex-col gap-4 lg:overflow-hidden max-w-[1800px] mx-auto">
+      {/* 1. TOP SECTION */}
+      <div className="shrink-0 lg:flex-[40] lg:min-h-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Field List */}
-        <div className="lg:col-span-2 h-full min-h-0">
+        <div className="lg:col-span-2 h-[45vh] md:h-[40vh] lg:h-full">
           <FieldList
             fields={fields}
             selectedFieldId={selectedFieldId}
@@ -255,16 +266,17 @@ export default function Home() {
             onAddField={() => setIsAddFieldOpen(true)}
           />
         </div>
-        {/* Frost Monitor (wrapped to handle internal scrolling if needed) */}
-        <div className="lg:col-span-1 h-full min-h-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
+
+        {/* Frost Monitor */}
+        <div className="lg:col-span-1 h-[30vh] md:h-[40vh] lg:h-full min-h-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
           <div className="h-full w-full overflow-y-auto">
             <FrostMonitor />
           </div>
         </div>
       </div>
 
-      {/* 2. MIDDLE SECTION: SENSORS (Flexible: ~25%) */}
-      <div className="flex-[25] min-h-0 flex flex-col">
+      {/* 2. MIDDLE SECTION: SENSORS */}
+      <div className="shrink-0 lg:flex-[25] lg:min-h-0 flex flex-col">
         <div className="flex items-center justify-between mb-2 shrink-0">
           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <Activity className="text-slate-400" size={16} />
@@ -285,35 +297,33 @@ export default function Home() {
           )}
         </div>
 
-        {/* Scrollable container for sensors */}
-        <div className="flex-1 overflow-y-auto min-h-0 pr-1 scrollbar-thin scrollbar-thumb-slate-200">
+        {/* Scrollable Container */}
+        <div className="flex-1 lg:overflow-y-auto min-h-0 pr-1 scrollbar-thin scrollbar-thumb-slate-200">
           {displayedSensors.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pb-1">
               {displayedSensors.map((sensor) => (
-                <div key={sensor.id} className="h-full">
+                <div key={sensor.id} className="h-full min-h-[140px]">
                   <SensorCard sensor={sensor} />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
+            <div className="h-32 lg:h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
               <p className="text-sm font-medium">Keine Sensoren gefunden.</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* 3. BOTTOM SECTION: ANALYSIS (Flexible: ~35%) */}
-      <div className="flex-[35] min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3 pb-1">
-        {/* BBCH Tracker - Removed 'p-2', 'bg-white', 'border' to let color fill the card */}
-        <div className="h-full min-h-0 overflow-hidden rounded-xl shadow-sm">
+      {/* 3. BOTTOM SECTION: ANALYSIS */}
+      <div className="shrink-0 lg:flex-[35] lg:min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3 pb-1">
+        <div className="h-[40vh] md:h-[35vh] lg:h-full min-h-0 overflow-hidden rounded-xl shadow-sm">
           <div className="h-full w-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
             <BBCHTracker data={bbchData} />
           </div>
         </div>
 
-        {/* Growth Chart - Removed 'p-2', 'bg-white', 'border' to let color fill the card */}
-        <div className="h-full min-h-0 overflow-hidden rounded-xl shadow-sm">
+        <div className="h-[40vh] md:h-[35vh] lg:h-full min-h-0 overflow-hidden rounded-xl shadow-sm">
           <div className="h-full w-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
             <GrowthChart data={growthData} />
           </div>
