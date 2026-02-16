@@ -40,6 +40,18 @@ export const MOCK_FIELDS = [
       [51.3295, 12.2310],
       [51.3295, 12.2290],
     ] as [number, number][],
+  },
+  {
+    id: 'f-004',
+    name: 'Apfelbaum Gewächshaus West (Miltitz)',
+    color: '#920ec7', // Purple
+    center: [49.13140, 13.3700] as [number, number], // ~10km West of Center
+    polygon: [
+      [49.13148, 13.3690],
+      [49.13148, 13.3710],
+      [49.13099, 13.3710],
+      [49.13099, 13.3690],
+    ] as [number, number][],
   }
 ];
 
@@ -103,6 +115,51 @@ export const MOCK_SENSORS: (Sensor & { fieldId: string })[] = [
     coordinates: [51.3300, 12.2300], // Updated
     photoUrl: '/uploads/sensor-1.jpg',
   },
+  // --- Field 4: Apfelbaum Gewächshaus West (Miltitz) ---
+  {
+    id: 's-005',
+    fieldId: 'f-004',
+    name: 'Apfelbaum Kamera', 
+    type: 'camera',
+    status: 'online',
+    batteryLevel: 95, 
+    signalStrength: 90,
+    lastUpdate: new Date().toISOString(),
+    value: 'Online',
+    unit: '',
+    coordinates: [49.13140, 13.3700], // Updated
+    photoUrl: '/uploads/sensor-2.jpg',
+    
+  },
+  {
+    id: 's-006',
+    fieldId: 'f-004',
+    name: 'Apfelbaum Temperatur',
+    type: 'temperature',
+    status: 'online',
+    batteryLevel: 95, 
+    signalStrength: 90,
+    lastUpdate: new Date().toISOString(),
+    value: 20.5,
+    unit: '°C',
+    coordinates: [49.13140, 13.3700], // Updated
+    photoUrl: '/uploads/sensor-2.jpg',
+    
+  },
+  {
+    id: 's-007',
+    fieldId: 'f-004',
+    name: 'Apfelbaum Bodenfeuchte', 
+    type: 'soil_moisture',
+    status: 'online',
+    batteryLevel: 95, 
+    signalStrength: 90,
+    lastUpdate: new Date().toISOString(),
+    value: 35,
+    unit: '%',
+    coordinates: [49.13140, 13.3700], // Updated
+    photoUrl: '/uploads/sensor-2.jpg',
+  }
 ];
 
 // ==========================================

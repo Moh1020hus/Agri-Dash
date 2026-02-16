@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MOCK_WEATHER } from "@/lib/dummy-data";
 import {
   AreaChart,
@@ -13,13 +13,54 @@ import {
   ReferenceLine,
 } from "recharts";
 import { clsx } from "clsx";
-import { ThermometerSnowflake, Sun, Maximize2 } from "lucide-react";
+import { ThermometerSnowflake, Sun, Maximize2, CloudRain } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 
-export default function FrostMonitor() {
-  const [isModalOpen, setModalOpen] = useState(false);
-  const minTemp = Math.min(...MOCK_WEATHER.map((d) => d.temp));
+interface FrostMonitorProps {
+  selectedFieldId?: string;
+  currentTemp?: number | null; // NEW PROP: Current sensor reading
+}
 
+export default function FrostMonitor({
+  selectedFieldId = "all",
+  currentTemp,
+}: FrostMonitorProps) {
+  const [isModalOpen, setModalOpen] = useState(false);
+
+  // --- ADJUST FORECAST TO MATCH SENSOR DATA ---
+  const weatherData = useMemo(() => {
+    // 1. Get base data (copy of mock data)
+    let baseData = MOCK_WEATHER.map((d) => ({ ...d }));
+
+    // 2. If we have a real sensor reading, shift the entire forecast
+    if (currentTemp !== undefined && currentTemp !== null) {
+      const forecastCurrent = baseData[0].temp;
+      const diff = currentTemp - forecastCurrent;
+
+      // Apply the difference to all future data points
+      baseData = baseData.map((d) => ({
+        ...d,
+        temp: parseFloat((d.temp + diff).toFixed(1)),
+      }));
+    } else {
+      // Fallback simulation if no sensor exists for this field
+      let tempOffset = 0;
+      if (selectedFieldId === "f-002") tempOffset = -5; // Simulator: Make Field 2 colder
+      if (selectedFieldId === "f-003") tempOffset = -1; // Simulator: Make Field 3 cooler
+
+      baseData = baseData.map((d) => ({
+        ...d,
+        temp: parseFloat((d.temp + tempOffset).toFixed(1)),
+      }));
+    }
+
+    return baseData;
+  }, [selectedFieldId, currentTemp]);
+
+  // Calculate min temp from the *adjusted* data
+  const minTemp = Math.min(...weatherData.map((d) => d.temp));
+
+  // Determine Risk Level based on adjusted min temp
   let riskLevel: "low" | "moderate" | "critical" = "low";
   if (minTemp < 0) riskLevel = "critical";
   else if (minTemp < 2) riskLevel = "moderate";
@@ -36,10 +77,15 @@ export default function FrostMonitor() {
           riskLevel === "moderate" &&
             "bg-amber-50 border-amber-200 hover:border-amber-400",
           riskLevel === "critical" &&
-            "bg-red-400 border-red-200 hover:border-red-200",
+            "bg-red-400 border-red-200 hover:border-red-200 text-white",
         )}
       >
-        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400">
+        <div
+          className={clsx(
+            "absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity",
+            riskLevel === "critical" ? "text-white/80" : "text-slate-400",
+          )}
+        >
           <Maximize2 size={18} />
         </div>
 
@@ -51,11 +97,13 @@ export default function FrostMonitor() {
               ? "bg-green-100 text-green-600"
               : riskLevel === "moderate"
                 ? "bg-amber-100 text-amber-600"
-                : "bg-red-100 text-red-600",
+                : "bg-white/20 text-white backdrop-blur-sm",
           )}
         >
           {riskLevel === "low" ? (
             <Sun size={40} />
+          ) : riskLevel === "moderate" ? (
+            <CloudRain size={40} />
           ) : (
             <ThermometerSnowflake size={40} />
           )}
@@ -65,28 +113,39 @@ export default function FrostMonitor() {
         <div
           className={clsx(
             "text-2xl font-bold mb-1",
-            riskLevel === "critical" ? "text-red-800" : "text-slate-800",
+            riskLevel === "critical" ? "text-white" : "text-slate-800",
           )}
         >
           {riskLevel === "low" && "Kein Frost"}
           {riskLevel === "moderate" && "Risiko Mäßig"}
           {riskLevel === "critical" && "Frost Warnung"}
         </div>
+
+        {/* Helper Text */}
+        <p
+          className={clsx(
+            "text-sm font-medium",
+            riskLevel === "critical" ? "text-white/80" : "text-slate-500",
+          )}
+        >
+          Min: {minTemp.toFixed(1)}°C
+        </p>
       </div>
 
-      {/* 2. DETAIL MODAL (Kept same) */}
+      {/* 2. DETAIL MODAL  */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
-        title="Temperaturverlauf (48h Prognose)"
+        title={`Temperaturverlauf (${selectedFieldId === "all" ? "Alle Flächen" : "Ausgewählte Fläche"})`}
       >
         <div className="h-[400px] w-full md:w-[600px] mx-auto">
           <p className="text-sm text-slate-500 mb-4">
-            Detaillierte Vorhersage für das Versuchsfeld Nord.
+            Detaillierte 48h-Vorhersage basierend auf{" "}
+            {currentTemp ? "aktuellen Sensordaten" : "regionalen Wetterdaten"}.
           </p>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
-              data={MOCK_WEATHER}
+              data={weatherData}
               margin={{ top: 10, right: 10, left: -20, bottom: 30 }}
             >
               <defs>

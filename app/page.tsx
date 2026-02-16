@@ -53,7 +53,7 @@ function SimpleModal({
   );
 }
 
-// --- FIELD LIST COMPONENT (Updated) ---
+// --- FIELD LIST COMPONENT ---
 function FieldList({
   fields,
   selectedFieldId,
@@ -86,7 +86,6 @@ function FieldList({
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 scrollbar-thin scrollbar-thumb-slate-200">
-        {/* "All Fields" Button */}
         <button
           onClick={() => onSelectField("all")}
           className={`w-full text-left px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 shadow-sm border
@@ -97,12 +96,11 @@ function FieldList({
             }`}
         >
           <div className="flex items-center justify-between">
-            <span>Alle Flächen</span>
+            <span>Alle Flächen (Übersicht)</span>
             {selectedFieldId === "all" && <Activity size={18} />}
           </div>
         </button>
 
-        {/* Individual Field Buttons */}
         {fields.map((field) => {
           const isSelected = selectedFieldId === field.id;
           return (
@@ -116,13 +114,11 @@ function FieldList({
                     : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:shadow-md"
                 }`}
               style={{
-                // Only apply background color if selected
                 backgroundColor: isSelected ? field.color : undefined,
                 borderColor: isSelected ? field.color : undefined,
               }}
             >
               <div className="flex items-center gap-3">
-                {/* Dot: White if selected, Colored if unselected */}
                 <span
                   className="w-3 h-3 rounded-full shrink-0"
                   style={{
@@ -131,8 +127,6 @@ function FieldList({
                 />
                 <span className="truncate">{field.name}</span>
               </div>
-
-              {/* Checkmark only when selected */}
               {isSelected && <Check size={18} />}
             </button>
           );
@@ -146,9 +140,26 @@ export default function Home() {
   const searchParams = useSearchParams();
   const currentView = searchParams.get("view") || "dashboard";
 
-  // Global State
+  // --- GLOBAL STATE ---
   const [fields, setFields] = useState<Field[]>(MOCK_FIELDS);
-  const [sensors, setSensors] = useState<any[]>(MOCK_SENSORS);
+
+  const [sensors, setSensors] = useState<any[]>([
+    ...MOCK_SENSORS,
+    {
+      id: "s-demo-frost",
+      fieldId: "f-002",
+      name: "Frostwächter Süd",
+      type: "temperature",
+      status: "warning",
+      batteryLevel: 45,
+      signalStrength: 80,
+      lastUpdate: new Date().toISOString(),
+      value: -1.5,
+      unit: "°C",
+      coordinates: [51.27, 12.42],
+    },
+  ]);
+
   const [selectedFieldId, setSelectedFieldId] = useState<string>("all");
 
   // Modal State
@@ -211,11 +222,33 @@ export default function Home() {
     setIsAddSensorOpen(false);
   };
 
-  // Derived data
-  const displayedSensors =
-    selectedFieldId === "all"
-      ? sensors
-      : sensors.filter((s: any) => s.fieldId === selectedFieldId);
+  // ==========================================
+  // DYNAMIC DATA LOGIC
+  // ==========================================
+  let displayedSensors: any[] = [];
+
+  if (selectedFieldId === "all") {
+    displayedSensors = sensors.filter((s) => {
+      const isOffline = s.status === "offline";
+      const isFrostRisk = s.type === "temperature" && (s.value as number) <= 2;
+      return isOffline || isFrostRisk;
+    });
+  } else {
+    displayedSensors = sensors.filter(
+      (s: any) => s.fieldId === selectedFieldId,
+    );
+  }
+
+  let currentTemp: number | null = null;
+  if (selectedFieldId === "all") {
+    const allTempSensors = sensors.filter((s) => s.type === "temperature");
+    if (allTempSensors.length > 0) {
+      currentTemp = Math.min(...allTempSensors.map((s) => s.value as number));
+    }
+  } else {
+    const sensor = displayedSensors.find((s) => s.type === "temperature");
+    currentTemp = sensor ? (sensor.value as number) : null;
+  }
 
   const currentFieldId = selectedFieldId === "all" ? "f-001" : selectedFieldId;
   const currentField = fields.find((f) => f.id === currentFieldId);
@@ -230,12 +263,14 @@ export default function Home() {
         <SettingsView />
       </div>
     );
+
   if (currentView === "reports")
     return (
       <div className="p-6 h-screen overflow-auto">
         <ReportsView />
       </div>
     );
+
   if (currentView === "fields")
     return (
       <div className="p-6 h-screen overflow-auto">
@@ -247,17 +282,26 @@ export default function Home() {
         />
       </div>
     );
+
+  // ✅ FIXED: pass fields AND sync setter so selection works reliably
   if (currentView === "plants")
-    return <div className="p-6 h-screen overflow-auto"></div>;
+    return (
+      <div className="p-6 h-screen overflow-auto">
+        <PlantAnalysisView
+          selectedFieldId={selectedFieldId}
+          fields={fields}
+          onSelectField={setSelectedFieldId}
+        />
+      </div>
+    );
 
   // ==========================================
-  // DYNAMIC TABLET & DESKTOP LAYOUT
+  // DASHBOARD LAYOUT
   // ==========================================
   return (
     <div className="min-h-screen lg:h-[calc(100vh-2rem)] p-4 flex flex-col gap-4 lg:overflow-hidden max-w-[1800px] mx-auto">
       {/* 1. TOP SECTION */}
       <div className="shrink-0 lg:flex-[40] lg:min-h-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Field List */}
         <div className="lg:col-span-2 h-[45vh] md:h-[40vh] lg:h-full">
           <FieldList
             fields={fields}
@@ -267,10 +311,12 @@ export default function Home() {
           />
         </div>
 
-        {/* Frost Monitor */}
         <div className="lg:col-span-1 h-[30vh] md:h-[40vh] lg:h-full min-h-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
           <div className="h-full w-full overflow-y-auto">
-            <FrostMonitor />
+            <FrostMonitor
+              selectedFieldId={selectedFieldId}
+              currentTemp={currentTemp}
+            />
           </div>
         </div>
       </div>
@@ -280,13 +326,16 @@ export default function Home() {
         <div className="flex items-center justify-between mb-2 shrink-0">
           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <Activity className="text-slate-400" size={16} />
-            Sensoren
+            {selectedFieldId === "all"
+              ? "Kritische Sensoren (Offline / Frost)"
+              : "Sensoren"}
             {selectedFieldId !== "all" && (
               <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
                 für {currentField?.name}
               </span>
             )}
           </h3>
+
           {selectedFieldId !== "all" && (
             <button
               onClick={() => setIsAddSensorOpen(true)}
@@ -297,38 +346,76 @@ export default function Home() {
           )}
         </div>
 
-        {/* Scrollable Container */}
         <div className="flex-1 lg:overflow-y-auto min-h-0 pr-1 scrollbar-thin scrollbar-thumb-slate-200">
           {displayedSensors.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pb-1">
-              {displayedSensors.map((sensor) => (
-                <div key={sensor.id} className="h-full min-h-[140px]">
-                  <SensorCard sensor={sensor} />
-                </div>
-              ))}
+              {displayedSensors.map((sensor) => {
+                const sensorField = fields.find((f) => f.id === sensor.fieldId);
+                return (
+                  <div key={sensor.id} className="h-full min-h-[140px]">
+                    <SensorCard
+                      sensor={sensor}
+                      fieldName={
+                        selectedFieldId === "all"
+                          ? sensorField?.name
+                          : undefined
+                      }
+                    />
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="h-32 lg:h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
-              <p className="text-sm font-medium">Keine Sensoren gefunden.</p>
+              {selectedFieldId === "all" ? (
+                <>
+                  <div className="p-3 bg-green-50 rounded-full mb-2">
+                    <Check size={24} className="text-green-500" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-600">
+                    Alles in Ordnung
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Keine kritischen Warnungen.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm font-medium">Keine Sensoren gefunden.</p>
+              )}
             </div>
           )}
         </div>
       </div>
 
       {/* 3. BOTTOM SECTION: ANALYSIS */}
-      <div className="shrink-0 lg:flex-[35] lg:min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3 pb-1">
-        <div className="h-[40vh] md:h-[35vh] lg:h-full min-h-0 overflow-hidden rounded-xl shadow-sm">
-          <div className="h-full w-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
-            <BBCHTracker data={bbchData} />
+      {selectedFieldId !== "all" && (
+        <div className="shrink-0 lg:flex-[35] lg:min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3 pb-1 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="h-[40vh] md:h-[35vh] lg:h-full min-h-0 overflow-hidden rounded-xl shadow-sm">
+            <div className="h-full w-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
+              <BBCHTracker data={bbchData} />
+            </div>
           </div>
-        </div>
 
-        <div className="h-[40vh] md:h-[35vh] lg:h-full min-h-0 overflow-hidden rounded-xl shadow-sm">
-          <div className="h-full w-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
-            <GrowthChart data={growthData} />
+          <div className="h-[40vh] md:h-[35vh] lg:h-full min-h-0 overflow-hidden rounded-xl shadow-sm">
+            <div className="h-full w-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
+              <GrowthChart data={growthData} />
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {selectedFieldId === "all" && (
+        <div className="shrink-0 lg:flex-[35] lg:min-h-0 flex items-center justify-center bg-slate-50 rounded-xl border border-slate-200 border-dashed text-slate-400">
+          <div className="text-center">
+            <p className="text-sm font-medium">
+              Bitte wählen Sie eine Fläche aus
+            </p>
+            <p className="text-xs">
+              um detaillierte Analysen und Wachstumsdaten zu sehen.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* --- MODALS --- */}
       <SimpleModal
@@ -349,6 +436,7 @@ export default function Home() {
               onChange={(e) => setNewFieldName(e.target.value)}
             />
           </div>
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Farbe
@@ -370,6 +458,7 @@ export default function Home() {
               )}
             </div>
           </div>
+
           <button
             onClick={handleCreateField}
             disabled={!newFieldName.trim()}
@@ -398,6 +487,7 @@ export default function Home() {
               onChange={(e) => setNewSensorName(e.target.value)}
             />
           </div>
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Typ
@@ -413,6 +503,7 @@ export default function Home() {
               <option value="camera">Kamera</option>
             </select>
           </div>
+
           <button
             onClick={handleCreateSensor}
             disabled={!newSensorName.trim()}

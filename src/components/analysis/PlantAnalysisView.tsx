@@ -22,8 +22,19 @@ import {
   Calendar,
 } from "lucide-react";
 import { MOCK_GROWTH_HISTORY, MOCK_WEATHER } from "@/lib/dummy-data";
+import { Field } from "@/types";
 
-export default function PlantAnalysisView() {
+type PlantAnalysisViewProps = {
+  selectedFieldId: string;
+  fields: Field[];
+  onSelectField: (id: string) => void;
+};
+
+export default function PlantAnalysisView({
+  selectedFieldId,
+  fields,
+  onSelectField,
+}: PlantAnalysisViewProps) {
   const [timeRange, setTimeRange] = useState("30d");
 
   // Mock Forecast Date for next stage
